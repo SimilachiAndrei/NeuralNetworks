@@ -32,8 +32,8 @@ test_y_hot = get_one_hot_encoding(test_Y)
 input_neurons = 784
 hidden_neurons = 100
 output_neurons = 10
-learning_rate = 0.1
-epochs = 50
+learning_rate = 0.01
+epochs = 100
 batch_size = 100
 dropout_rate = 0.5
 
@@ -113,7 +113,7 @@ def update_parameters(W1, b1, W2, b2, grads, learning_rate):
 
 
 # train function
-def train(train_X, train_y_hot, test_X, test_y_hot, epochs, batch_size, learning_rate):
+def train(train_X, train_y_hot, epochs, batch_size, learning_rate):
     global W1, b1, W2, b2
     n = train_X.shape[0]
 
@@ -135,14 +135,14 @@ def train(train_X, train_y_hot, test_X, test_y_hot, epochs, batch_size, learning
 
             W1, b1, W2, b2 = update_parameters(W1, b1, W2, b2, grads, learning_rate)
 
-        val_predictions, _ = forward_propagation(test_X, apply_dropout=False)
-        val_accuracy = np.mean(np.argmax(val_predictions, axis=1) == np.argmax(test_y_hot, axis=1))
+        val_predictions, _ = forward_propagation(train_X, apply_dropout=False)
+        val_accuracy = np.mean(np.argmax(val_predictions, axis=1) == np.argmax(train_y_hot, axis=1))
 
         print(f"Epoch {epoch + 1}/{epochs} - Loss: {loss:.4f} - Validation Accuracy: {val_accuracy:.4f}")
 
 
 # training
-train(train_X, train_y_hot, test_X, test_y_hot, epochs=epochs, batch_size=batch_size, learning_rate=learning_rate)
+train(train_X, train_y_hot, epochs=epochs, batch_size=batch_size, learning_rate=learning_rate)
 
 # accuracy
 final_predictions, _ = forward_propagation(test_X, apply_dropout=False)
