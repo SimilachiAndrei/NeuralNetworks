@@ -33,7 +33,7 @@ input_neurons = 784
 hidden_neurons = 100
 output_neurons = 10
 learning_rate = 0.01
-epochs = 100
+epochs = 50
 batch_size = 100
 dropout_rate = 0.5
 
@@ -51,7 +51,7 @@ def sigmoid(z):
 
 #output
 def softmax(z):
-    exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))  # Stability fix
+    exp_z = np.exp(z)
     return exp_z / np.sum(exp_z, axis=1, keepdims=True)
 
 #derivatives
@@ -59,7 +59,7 @@ def sigmoid_derivative(a):
     return np.clip(a * (1 - a), 1e-7, 1 - 1e-7)  # avoid overflow
 
 #forward propagation with dropout
-def forward_propagation(X, apply_dropout=True):
+def forward_propagation(W1, b1, W2, b2, X, apply_dropout=True):
     Z1 = np.dot(X, W1) + b1
     A1 = sigmoid(Z1)
 
@@ -71,8 +71,8 @@ def forward_propagation(X, apply_dropout=True):
 
     Z2 = np.dot(A1, W2) + b2
     A2 = softmax(Z2)
-    cache = {"A1": A1, "D1": D1, "A2": A2}
-    return A2, cache
+    mapped = {"A1": A1, "D1": D1, "A2": A2}
+    return A2, mapped
 
 # Compute cross-entropy loss
 def cross_entropy_loss(y, t):
@@ -81,8 +81,8 @@ def cross_entropy_loss(y, t):
     return np.sum(log_likelihood) / n
 
 # Backpropagation
-def backpropagation(X, t, cache):
-    A1, A2, D1 = cache["A1"], cache["A2"], cache["D1"]
+def backpropagation(W2, X, t, mapped):
+    A1, A2, D1 = mapped["A1"], mapped["A2"], mapped["D1"]
 
     # Output layer
     dZ2 = A2 - t
@@ -111,10 +111,9 @@ def update_parameters(W1, b1, W2, b2, grads, learning_rate):
     b2 -= learning_rate * grads["db2"]
     return W1, b1, W2, b2
 
-
+#W1, b1, W2, b2
 # train function
-def train(train_X, train_y_hot, epochs, batch_size, learning_rate):
-    global W1, b1, W2, b2
+def train(W1, b1, W2, b2, train_X, train_y_hot, epochs, batch_size, learning_rate):
     n = train_X.shape[0]
 
     for epoch in range(epochs):
@@ -129,22 +128,22 @@ def train(train_X, train_y_hot, epochs, batch_size, learning_rate):
             end_idx = start_idx + batch_size
             X_batch, y_batch = X[start_idx:end_idx], t[start_idx:end_idx]
 
-            y, cache = forward_propagation(X_batch, apply_dropout=True)
+            y, mapped = forward_propagation(W1, b1, W2, b2, X_batch, apply_dropout=True)
             loss = cross_entropy_loss(y, y_batch)
-            grads = backpropagation(X_batch, y_batch, cache)
+            grads = backpropagation(W2 ,X_batch, y_batch, mapped)
 
             W1, b1, W2, b2 = update_parameters(W1, b1, W2, b2, grads, learning_rate)
 
-        val_predictions, _ = forward_propagation(train_X, apply_dropout=False)
+        val_predictions, _ = forward_propagation(W1, b1, W2, b2, train_X, apply_dropout=False)
         val_accuracy = np.mean(np.argmax(val_predictions, axis=1) == np.argmax(train_y_hot, axis=1))
 
         print(f"Epoch {epoch + 1}/{epochs} - Loss: {loss:.4f} - Validation Accuracy: {val_accuracy:.4f}")
 
 
 # training
-train(train_X, train_y_hot, epochs=epochs, batch_size=batch_size, learning_rate=learning_rate)
+train(W1, b1, W2, b2, train_X, train_y_hot, epochs=epochs, batch_size=batch_size, learning_rate=learning_rate)
 
 # accuracy
-final_predictions, _ = forward_propagation(test_X, apply_dropout=False)
+final_predictions, _ = forward_propagation(W1, b1, W2, b2, test_X, apply_dropout=False)
 final_accuracy = np.mean(np.argmax(final_predictions, axis=1) == np.argmax(test_y_hot, axis=1))
 print(f"Final Validation Accuracy: {final_accuracy * 100:.2f}%")
