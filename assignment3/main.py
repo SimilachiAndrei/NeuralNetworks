@@ -33,7 +33,7 @@ input_neurons = 784
 hidden_neurons = 100
 output_neurons = 10
 learning_rate = 0.01
-epochs = 50
+epochs = 100
 batch_size = 100
 dropout_rate = 0.5
 
@@ -71,7 +71,7 @@ def forward_propagation(W1, b1, W2, b2, X, apply_dropout=True):
 
     Z2 = np.dot(A1, W2) + b2
     A2 = softmax(Z2)
-    mapped = {"A1": A1, "D1": D1, "A2": A2}
+    mapped = {"Z1": Z1, "A1": A1, "D1": D1, "A2": A2}
     return A2, mapped
 
 # Compute cross-entropy loss
@@ -82,7 +82,7 @@ def cross_entropy_loss(y, t):
 
 # Backpropagation
 def backpropagation(W2, X, t, mapped):
-    A1, A2, D1 = mapped["A1"], mapped["A2"], mapped["D1"]
+    Z1, A1, A2, D1 = mapped["Z1"], mapped["A1"], mapped["A2"], mapped["D1"]
 
     # Output layer
     dZ2 = A2 - t
@@ -90,7 +90,7 @@ def backpropagation(W2, X, t, mapped):
     db2 = np.sum(dZ2, axis=0, keepdims=True)
 
     # Hidden layer error
-    dZ1 = np.dot(dZ2, W2.T) * sigmoid_derivative(A1)
+    dZ1 = np.dot(dZ2, W2.T) * sigmoid_derivative(Z1) ##
 
     if D1 is not None:
         dZ1 *= D1
