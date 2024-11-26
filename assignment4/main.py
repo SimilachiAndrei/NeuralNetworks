@@ -11,21 +11,24 @@ class MyModel(nn.Module):
     def __init__(self, input_size, hidden_size1, hidden_size2, output_size):
         super().__init__()
         self.layer_1 = nn.Linear(input_size, hidden_size1)
+        self.bn1 = nn.BatchNorm1d(hidden_size1)  # BatchNorm after layer 1
         self.layer_2 = nn.Linear(hidden_size1, hidden_size2)
+        self.bn2 = nn.BatchNorm1d(hidden_size2)  # BatchNorm after layer 2
         self.layer_4 = nn.Linear(hidden_size2, output_size)
-
+        self.dropout = nn.Dropout(0.3)  # Dropout with a probability of 30%
 
     def forward(self, x: Tensor):
         x = self.layer_1(x)
+        x = self.bn1(x)  # Apply BatchNorm
         x = nn.LeakyReLU(negative_slope=0.01)(x)
 
         x = self.layer_2(x)
+        x = self.bn2(x)  # Apply BatchNorm
         x = nn.LeakyReLU(negative_slope=0.01)(x)
 
-
+        x = self.dropout(x)  # Apply Dropout
 
         x = self.layer_4(x)
-
         return x
 
 
@@ -160,4 +163,4 @@ val_dataloader = DataLoader(
 )
 
 
-main(model, train_dataloader, val_dataloader, criterion, optimizer, device, 50)
+main(model, train_dataloader, val_dataloader, criterion, optimizer, device, 100)
