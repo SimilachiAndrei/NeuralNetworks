@@ -52,7 +52,8 @@ print(device)
 
 model = model.to(device)
 
-optimizer = torch.optim.RAdam(model.parameters(), lr=0.001)
+# optimizer = torch.optim.RAdam(model.parameters(), lr=0.001)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.001)  # Adam with Weight Decay
 
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer,
