@@ -8,14 +8,12 @@ from tqdm import tqdm
 from torchvision import transforms
 
 class MyModel(nn.Module):
-    def __init__(self, input_size, hidden_size1, hidden_size2,hidden_size3, output_size):
+    def __init__(self, input_size, hidden_size1, hidden_size2, output_size):
         super().__init__()
         self.layer_1 = nn.Linear(input_size, hidden_size1)
         self.layer_2 = nn.Linear(hidden_size1, hidden_size2)
-        self.layer_3 = nn.Linear(hidden_size2, hidden_size3)
-        self.layer_4 = nn.Linear(hidden_size3, output_size)
+        self.layer_4 = nn.Linear(hidden_size2, output_size)
 
-        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x: Tensor):
         x = self.layer_1(x)
@@ -24,20 +22,19 @@ class MyModel(nn.Module):
         x = self.layer_2(x)
         x = nn.LeakyReLU(negative_slope=0.01)(x)
 
-        x = self.layer_3(x)
-        x = nn.LeakyReLU(negative_slope=0.01)(x)
+
 
         x = self.layer_4(x)
 
         return x
 
 
-model = MyModel(input_size=784, hidden_size1=256, hidden_size2= 126, hidden_size3=64, output_size=10)
+model = MyModel(input_size=784, hidden_size1=256, hidden_size2= 126, output_size=10)
 
 def init_weights(m):
     if isinstance(m, nn.Linear):
-        nn.init.kaiming_uniform_(m.weight, nonlinearity='relu')  # Kaiming initialization
-        nn.init.zeros_(m.bias)  # Initialize biases to 0
+        nn.init.kaiming_uniform_(m.weight, nonlinearity='relu')
+        nn.init.zeros_(m.bias)
 model.apply(init_weights)
 
 
@@ -55,43 +52,40 @@ print(device)
 
 model = model.to(device)
 
-# Optimizers apply the gradients calculated by the Autograd engine to the weights, using their own optimization technique
-# optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, nesterov=True, weight_decay=0.001)  # SGD with Nesterov momentum and weight decay
 optimizer = torch.optim.RAdam(model.parameters(), lr=0.001)
 
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer,
-    mode='min',  # 'min' for metrics like validation loss, 'max' for accuracy
-    factor=0.5,  # Factor by which the learning rate is reduced
-    patience=5,  # Number of epochs to wait before reducing the learning rate
+    mode='min',
+    factor=0.5,
+    patience=3,
 )
 
 criterion = nn.CrossEntropyLoss()
 
 
 def train(model, train_dataloader, criterion, optimizer, device):
-    model.train()  # We need to activate the dropout & batch norm layers
+    model.train()
 
     mean_loss = 0.0
 
     for data, labels in train_dataloader:
-        data = data.to(device)  # We move the data to device. Bonus: we can do this in an async manner using non_blocking and pin_memory
+        data = data.to(device)
         labels = labels.to(device)
 
-        outputs = model(data)  # the forward pass
-        loss = criterion(outputs, labels)  # we calculate the loss
+        outputs = model(data)
+        loss = criterion(outputs, labels)
 
-        loss.backward()  # we backpropagate the loss
+        loss.backward()
 
         if False:
-            # After loss.backward(), the gradients for each weight and bias are calculated and assigned to layer.weight.grad and layer.bias.grad
             last_layer_w_grad = model.layer_2.weight.grad
             last_layer_b_grad = model.layer_2.bias.grad
             print(f"Last layer gradient: {last_layer_w_grad.shape}")
             print(f"Last layer gradient: {last_layer_b_grad.shape}")
 
-        optimizer.step()  # we update the weights
-        optimizer.zero_grad()  # we reset the gradients
+        optimizer.step()
+        optimizer.zero_grad()
 
         mean_loss += loss.item()
 
@@ -100,26 +94,25 @@ def train(model, train_dataloader, criterion, optimizer, device):
 
 
 def val(model, dataloader, criterion, device):
-    model.eval()  # Switch to evaluation mode
+    model.eval()
     val_loss = 0.0
     correct = 0
     total = 0
 
-    with torch.no_grad():  # Disable gradient calculations for evaluation
+    with torch.no_grad():
         for data, labels in dataloader:
             data, labels = data.to(device), labels.to(device)
 
-            outputs = model(data)  # Forward pass
-            loss = criterion(outputs, labels)  # Calculate loss
+            outputs = model(data)
+            loss = criterion(outputs, labels)
             val_loss += loss.item()
 
-            # Calculate accuracy
-            _, predicted = torch.max(outputs, 1)  # Get the index of the max log-probability
-            correct += (predicted == labels).sum().item()  # Count correct predictions
-            total += labels.size(0)  # Total number of samples
+            _, predicted = torch.max(outputs, 1)
+            correct += (predicted == labels).sum().item()
+            total += labels.size(0)
 
-    val_loss /= len(dataloader)  # Average loss
-    accuracy = correct / total  # Accuracy as a percentage
+    val_loss /= len(dataloader)
+    accuracy = correct / total
     return val_loss, accuracy
 
 
@@ -131,15 +124,26 @@ def main(model, train_dataloader, val_dataloader, criterion, optimizer, device, 
             scheduler.step(val_loss)
             tbar.set_description(f"Train loss: {train_loss:.3f} | Val loss: {val_loss:.3f} | Val test accuracy: {val_accuracy*100:.3f}")
 
-def transforms():
-    return lambda x: torch.from_numpy(np.array(x, dtype=np.float32).flatten() / 255)
+from torchvision import transforms
 
+train_transforms = transforms.Compose([
+    transforms.RandomRotation(10),
+    transforms.RandomAffine(0, translate=(0.1, 0.1)),
+    transforms.ToTensor(),
+    transforms.Lambda(lambda x: x.view(-1))
+])
 
-train_dataset = MNIST(root='./data', train=True, download=True, transform=transforms())
-val_dataset = MNIST(root='./data', train=False, download=True, transform=transforms())
+val_transforms = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Lambda(lambda x: x.view(-1))
+])
+
+train_dataset = MNIST(root='./data', train=True, download=True, transform=train_transforms)
+val_dataset = MNIST(root='./data', train=False, download=True, transform=val_transforms)
+
 train_dataloader = DataLoader(
     train_dataset,
-    batch_size=128, #64 seems to work better
+    batch_size=128,
     shuffle=True,
     drop_last=True,
     num_workers=10,
