@@ -8,11 +8,12 @@ from tqdm import tqdm
 from torchvision import transforms
 
 class MyModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size1, hidden_size2,hidden_size3, output_size):
         super().__init__()
-        self.layer_1 = nn.Linear(input_size, hidden_size)
-        self.layer_2 = nn.Linear(hidden_size, hidden_size)
-        self.layer_3 = nn.Linear(hidden_size, output_size)
+        self.layer_1 = nn.Linear(input_size, hidden_size1)
+        self.layer_2 = nn.Linear(hidden_size1, hidden_size2)
+        self.layer_3 = nn.Linear(hidden_size2, hidden_size3)
+        self.layer_4 = nn.Linear(hidden_size3, output_size)
 
         self.softmax = nn.Softmax(dim=1)
 
@@ -24,11 +25,14 @@ class MyModel(nn.Module):
         x = nn.LeakyReLU(negative_slope=0.01)(x)
 
         x = self.layer_3(x)
+        x = nn.LeakyReLU(negative_slope=0.01)(x)
+
+        x = self.layer_4(x)
 
         return x
 
 
-model = MyModel(input_size=784, hidden_size=100, output_size=10)
+model = MyModel(input_size=784, hidden_size1=256, hidden_size2= 126, hidden_size3=64, output_size=10)
 
 def init_weights(m):
     if isinstance(m, nn.Linear):
@@ -53,7 +57,7 @@ model = model.to(device)
 
 # Optimizers apply the gradients calculated by the Autograd engine to the weights, using their own optimization technique
 # optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, nesterov=True, weight_decay=0.001)  # SGD with Nesterov momentum and weight decay
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.001)  # Adam with Weight Decay
+optimizer = torch.optim.RAdam(model.parameters(), lr=0.001)
 
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer,
