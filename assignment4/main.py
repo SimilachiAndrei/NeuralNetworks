@@ -3,43 +3,35 @@ from torch import nn
 from torch import Tensor
 import torch
 from torchvision.datasets import MNIST
-import numpy as np
 from tqdm import tqdm
-from torchvision import transforms
+import pandas as pd
 
 class MyModel(nn.Module):
     def __init__(self, input_size, hidden_size1, hidden_size2, output_size):
         super().__init__()
         self.layer_1 = nn.Linear(input_size, hidden_size1)
-        self.bn1 = nn.BatchNorm1d(hidden_size1)  # BatchNorm after layer 1
+        self.bn1 = nn.BatchNorm1d(hidden_size1)
         self.layer_2 = nn.Linear(hidden_size1, hidden_size2)
-        self.bn2 = nn.BatchNorm1d(hidden_size2)  # BatchNorm after layer 2
+        self.bn2 = nn.BatchNorm1d(hidden_size2)
         self.layer_4 = nn.Linear(hidden_size2, output_size)
-        self.dropout = nn.Dropout(0.3)  # Dropout with a probability of 30%
+        self.dropout = nn.Dropout(0.3)
 
     def forward(self, x: Tensor):
         x = self.layer_1(x)
-        x = self.bn1(x)  # Apply BatchNorm
+        x = self.bn1(x)
         x = nn.LeakyReLU(negative_slope=0.01)(x)
 
         x = self.layer_2(x)
-        x = self.bn2(x)  # Apply BatchNorm
+        x = self.bn2(x)
         x = nn.LeakyReLU(negative_slope=0.01)(x)
 
-        x = self.dropout(x)  # Apply Dropout
+        # x = self.dropout(x)
 
         x = self.layer_4(x)
         return x
 
 
 model = MyModel(input_size=784, hidden_size1=256, hidden_size2= 126, output_size=10)
-
-def init_weights(m):
-    if isinstance(m, nn.Linear):
-        nn.init.kaiming_uniform_(m.weight, nonlinearity='relu')
-        nn.init.zeros_(m.bias)
-model.apply(init_weights)
-
 
 
 def get_device():
@@ -55,8 +47,7 @@ print(device)
 
 model = model.to(device)
 
-# optimizer = torch.optim.RAdam(model.parameters(), lr=0.001)
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.001)  # Adam with Weight Decay
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.001)
 
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer,
@@ -66,7 +57,6 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 )
 
 criterion = nn.CrossEntropyLoss()
-
 
 def train(model, train_dataloader, criterion, optimizer, device):
     model.train()
@@ -147,7 +137,7 @@ val_dataset = MNIST(root='./data', train=False, download=True, transform=val_tra
 
 train_dataloader = DataLoader(
     train_dataset,
-    batch_size=128,
+    batch_size=64,
     shuffle=True,
     drop_last=True,
     num_workers=10,
@@ -163,4 +153,23 @@ val_dataloader = DataLoader(
 )
 
 
-main(model, train_dataloader, val_dataloader, criterion, optimizer, device, 100)
+main(model, train_dataloader, val_dataloader, criterion, optimizer, device, 200)
+
+results = {
+    "ID": [],
+    "target": []
+}
+
+model.eval()
+with torch.no_grad():
+    for i, (images, labels) in enumerate(val_dataloader):
+        images = images.to(device)
+        outputs = model(images)
+        _, predictions = torch.max(outputs, 1)
+
+        batch_size = labels.size(0)
+        results["ID"].extend(range(i * batch_size, i * batch_size + batch_size))
+        results["target"].extend(predictions.cpu().tolist())
+
+df = pd.DataFrame(results)
+df.to_csv("submission.csv", index=False)
