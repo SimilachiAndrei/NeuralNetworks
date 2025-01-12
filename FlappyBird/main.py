@@ -16,9 +16,9 @@ class NeuralNetwork(nn.Module):
 
         self.number_of_actions = 2
         self.gamma = 0.99
-        self.final_epsilon = 0.0001 # 0.00001
-        self.initial_epsilon = 0.2
-        self.number_of_iterations = 10000
+        self.final_epsilon = 0.001 # 0.00001
+        self.initial_epsilon = 0.01
+        self.number_of_iterations = 220000
         self.replay_memory_size = 10000
         self.minibatch_size = 32
 
@@ -105,7 +105,7 @@ def main():
     # Training environment
     env = gym.make('FlappyBird-v0', render_mode="rgb_array")
     model = NeuralNetwork().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr = 0.0001)
     criterion = nn.MSELoss()
 
     replay_memory = deque(maxlen=model.replay_memory_size)
@@ -202,5 +202,49 @@ def main():
     test_env.close()
 
 
+def load_and_test_model(
+        model_path,
+        num_episodes=3,
+        render_mode="human",
+):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # Create model and load checkpoint
+    model = NeuralNetwork().to(device)
+
+    try:
+        checkpoint = torch.load(model_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"Model loaded from {model_path}")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return {}
+
+    env = gym.make('FlappyBird-v0', render_mode=render_mode)
+
+    test_scores = test_model(model, env, device, num_episodes)
+
+    results = {
+        'mean_score': np.mean(test_scores),
+        'num_episodes': num_episodes,
+    }
+
+    print("\nTest Results:")
+    print(f"Number of episodes: {results['num_episodes']}")
+    print(f"Average score: {results['mean_score']:.2f}")
+
+    env.close()
+    return results
+
+# if __name__ == "__main__":
+#     main()
+
 if __name__ == "__main__":
-    main()
+    model_path = "saved_models/model_ep_928_avg_41.82_20250112_152812.pth"
+    results = load_and_test_model(
+        model_path=model_path,
+        num_episodes=1,
+        render_mode="human",
+    )
